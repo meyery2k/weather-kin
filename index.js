@@ -16,6 +16,9 @@ const OPEN_METEO_URL =
   // IMPORTANT: Set temperature scale (celsius or fahrenheit) below, as well as wind speed (kmh or mph):
   "&temperature_unit=celsius&wind_speed_unit=kmh";
 
+// --- Scheduling ---
+// To change how often the weather updates, change the number below.
+// Default is 6 (hours). For every 3 hours, change it to 3, etc.
 const INTERVAL_HOURS = 6;
 
 // --- Config ---
@@ -142,11 +145,7 @@ async function tick() {
   }
 }
 
-// --- Scheduling ---
-// To change how often the weather updates, change the number below.
-// Default is 6 (hours). For every 3 hours, change it to 3, etc.
 // Runs immediately, then at set intervals
-const INTERVAL_HOURS = 6;
 
 tick();
 const intervalMs = INTERVAL_HOURS * 60 * 60 * 1000;
