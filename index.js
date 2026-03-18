@@ -94,10 +94,15 @@ const WMO_CONDITIONS = new Map([
   [99, "thunderstorming with hail"],
 ]);
 
-function describeWind(kmh) {
-  if (kmh < 15) return null;
-  if (kmh < 30) return "There's a light breeze.";
-  if (kmh < 50) return "It's windy outside.";
+function describeWind(speed) {
+  const isKmh = CONFIG.windSpeedUnit === "kmh";
+  const light = isKmh ? 15 : 9;
+  const moderate = isKmh ? 30 : 19;
+  const strong = isKmh ? 50 : 31;
+
+  if (speed < light) return null;
+  if (speed < moderate) return "There's a light breeze.";
+  if (speed < strong) return "It's windy outside.";
   return "It's really blustery out.";
 }
 
