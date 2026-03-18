@@ -11,7 +11,7 @@
 // Optional env vars:
 //   TEMPERATURE_UNIT    - "celsius" or "fahrenheit" (default: celsius)
 //   WIND_SPEED_UNIT     - "kmh" or "mph" (default: kmh)
-//   INTERVAL_HOURS      - Hours between updates (default: 6)
+//   UPDATE_HOURS        - Comma-separated hours to update (default: "0,6,12,18")
 //
 // No weather API key needed (Open-Meteo is free and requires no account).
 
@@ -40,7 +40,17 @@ const CONFIG = {
   longitude: requiredEnv("LONGITUDE"),
   temperatureUnit: optionalEnv("TEMPERATURE_UNIT", "celsius"),
   windSpeedUnit: optionalEnv("WIND_SPEED_UNIT", "kmh"),
-  intervalHours: Number(optionalEnv("INTERVAL_HOURS", "6")),
+  updateHours: optionalEnv("UPDATE_HOURS", "0,6,12,18")
+    .split(",")
+    .map((h) => {
+      const n = Number(h.trim());
+      if (isNaN(n) || n < 0 || n > 23) {
+        console.error(`Invalid hour in UPDATE_HOURS: "${h.trim()}"`);
+        process.exit(1);
+      }
+      return n;
+    })
+    .sort((a, b) => a - b),
 };
 
 const OPEN_METEO_URL =
@@ -137,6 +147,33 @@ async function updateCurrentScene(sceneText) {
   }
 }
 
+// --- Scheduling ---
+
+function msUntilNextUpdate() {
+  const now = new Date();
+  const candidates = CONFIG.updateHours.flatMap((h) => {
+    const today = new Date(now);
+    today.setHours(h, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return [today, tomorrow];
+  });
+  const next = candidates
+    .filter((t) => t > now)
+    .sort((a, b) => a - b)[0];
+  return { ms: next - now, time: next };
+}
+
+function scheduleNext() {
+  const { ms, time } = msUntilNextUpdate();
+  const hh = time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  console.log(`Next update at ${hh} (in ${Math.round(ms / 60000)} min)`);
+  setTimeout(async () => {
+    await tick();
+    scheduleNext();
+  }, ms);
+}
+
 // --- Main loop ---
 
 let lastScene = null;
@@ -159,8 +196,6 @@ async function tick() {
   }
 }
 
+console.log(`Update schedule: ${CONFIG.updateHours.map((h) => `${h}:00`).join(", ")}`);
 tick();
-
-const intervalMs = CONFIG.intervalHours * 60 * 60 * 1000;
-console.log(`Scheduling every ${CONFIG.intervalHours}h (${intervalMs}ms)`);
-setInterval(tick, intervalMs);
+scheduleNext();
