@@ -1,25 +1,21 @@
-// weather-kin: Polls Open-Meteo for weather at set latitude and longitude and updates
-// Kin's Current Setting on Kindroid with a natural language scene.
+// weather-kin: Polls Open-Meteo for weather and updates a Kin's
+// Current Setting on Kindroid with a natural language scene.
 //
 // Required env vars:
-//   KINDROID_API_KEY  - Your Kindroid API key
-//   KINDROID_AI_ID    - Kin's AI ID
+//   KINDROID_API_KEY    - Your Kindroid API key
+//   KINDROID_AI_ID      - Kin's AI ID
+//   LOCATION_NAME       - Display name for the location (e.g. "Seabreak")
+//   LATITUDE            - Location latitude (e.g. 49.16)
+//   LONGITUDE           - Location longitude (e.g. -123.94)
 //
-// Runs every 6 hours. No weather API key needed (Open-Meteo is free and requires no account).
+// Optional env vars:
+//   TEMPERATURE_UNIT    - "celsius" or "fahrenheit" (default: celsius)
+//   WIND_SPEED_UNIT     - "kmh" or "mph" (default: kmh)
+//   INTERVAL_HOURS      - Hours between updates (default: 6)
+//
+// No weather API key needed (Open-Meteo is free and requires no account).
 
 const KINDROID_BASE = "https://api.kindroid.ai/v1";
-const OPEN_METEO_URL =
-  "https://api.open-meteo.com/v1/forecast" +
-  // IMPORTANT: Set latitude and longitude of desired location below:
-  "?latitude=49.16&longitude=-123.94" +
-  "&current=temperature_2m,weather_code,wind_speed_10m" +
-  // IMPORTANT: Set temperature scale (celsius or fahrenheit) below, as well as wind speed (kmh or mph):
-  "&temperature_unit=celsius&wind_speed_unit=kmh";
-
-// --- Scheduling ---
-// To change how often the weather updates, change the number below.
-// Default is 6 (hours). For every 3 hours, change it to 3, etc.
-const INTERVAL_HOURS = 6;
 
 // --- Config ---
 
@@ -32,10 +28,28 @@ function requiredEnv(name) {
   return val;
 }
 
+function optionalEnv(name, fallback) {
+  return process.env[name] || fallback;
+}
+
 const CONFIG = {
   kindroidKey: requiredEnv("KINDROID_API_KEY"),
   aiId: requiredEnv("KINDROID_AI_ID"),
+  locationName: requiredEnv("LOCATION_NAME"),
+  latitude: requiredEnv("LATITUDE"),
+  longitude: requiredEnv("LONGITUDE"),
+  temperatureUnit: optionalEnv("TEMPERATURE_UNIT", "celsius"),
+  windSpeedUnit: optionalEnv("WIND_SPEED_UNIT", "kmh"),
+  intervalHours: Number(optionalEnv("INTERVAL_HOURS", "6")),
 };
+
+const OPEN_METEO_URL =
+  "https://api.open-meteo.com/v1/forecast" +
+  `?latitude=${CONFIG.latitude}&longitude=${CONFIG.longitude}` +
+  "&current=temperature_2m,weather_code,wind_speed_10m" +
+  `&temperature_unit=${CONFIG.temperatureUnit}&wind_speed_unit=${CONFIG.windSpeedUnit}`;
+
+const TEMP_SYMBOL = CONFIG.temperatureUnit === "fahrenheit" ? "°F" : "°C";
 
 // --- WMO Weather Code mapping ---
 
@@ -95,8 +109,8 @@ function formatScene(data) {
 
   const conditions = WMO_CONDITIONS.get(code) || "unknown conditions";
   const windLine = describeWind(wind);
-// IMPORTANT: Replace "Seabreak" with desired location name.
-  let scene = `It's currently ${temp}°C and ${conditions} in Seabreak.`;
+
+  let scene = `It's currently ${temp}${TEMP_SYMBOL} and ${conditions} in ${CONFIG.locationName}.`;
   if (windLine) scene += ` ${windLine}`;
 
   return scene;
@@ -145,9 +159,8 @@ async function tick() {
   }
 }
 
-// Runs immediately, then at set intervals
-
 tick();
-const intervalMs = INTERVAL_HOURS * 60 * 60 * 1000;
-console.log(`Scheduling every ${INTERVAL_HOURS}h (${intervalMs}ms)`);
+
+const intervalMs = CONFIG.intervalHours * 60 * 60 * 1000;
+console.log(`Scheduling every ${CONFIG.intervalHours}h (${intervalMs}ms)`);
 setInterval(tick, intervalMs);
