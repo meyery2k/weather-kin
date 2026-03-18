@@ -32,7 +32,8 @@ No weather API key is needed — Open-Meteo is free and requires no account.
    | `LONGITUDE` | Yes | | Location longitude (e.g. `-123.94`) |
    | `TEMPERATURE_UNIT` | No | `celsius` | `celsius` or `fahrenheit` |
    | `WIND_SPEED_UNIT` | No | `kmh` | `kmh` or `mph` |
-   | `INTERVAL_HOURS` | No | `6` | Hours between weather updates |
+   | `UPDATE_HOURS` | No | `0,6,12,18` | Comma-separated hours (0-23) to update |
+   | `TZ` | No | `UTC` | Timezone for update schedule (e.g. `America/Vancouver`) |
 
 ## Running
 
@@ -54,7 +55,7 @@ docker run --env-file .env weather-kin
 1. Fetches current weather from Open-Meteo for the configured coordinates.
 2. Converts the WMO weather code, temperature, and wind speed into a short natural-language sentence.
 3. Pushes that sentence to the kin's Current Setting via the Kindroid API.
-4. Repeats on the configured interval (default: every 6 hours).
+4. Schedules the next update at the next configured hour (default: midnight, 6am, noon, 6pm).
 
 If a fetch fails, the last successful scene is retained until the next successful update.
 
