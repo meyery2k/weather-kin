@@ -12,6 +12,7 @@
 //   TEMPERATURE_UNIT    - "celsius" or "fahrenheit" (default: celsius)
 //   WIND_SPEED_UNIT     - "kmh" or "mph" (default: kmh)
 //   UPDATE_HOURS        - Comma-separated hours to update (default: "0,6,12,18")
+//   LOCATION_REGION     - Region/state for seasonal context (e.g. "British Columbia")
 //
 // No weather API key needed (Open-Meteo is free and requires no account).
 
@@ -40,6 +41,7 @@ const CONFIG = {
   longitude: requiredEnv("LONGITUDE"),
   temperatureUnit: optionalEnv("TEMPERATURE_UNIT", "celsius"),
   windSpeedUnit: optionalEnv("WIND_SPEED_UNIT", "kmh"),
+  locationRegion: optionalEnv("LOCATION_REGION", ""),
   updateHours: optionalEnv("UPDATE_HOURS", "0,6,12,18")
     .split(",")
     .map((h) => {
@@ -108,12 +110,22 @@ function describeWind(speed) {
 
 // --- Weather ---
 
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 10000;
+
 async function fetchWeather() {
-  const res = await fetch(OPEN_METEO_URL, { signal: AbortSignal.timeout(15000) });
-  if (!res.ok) {
-    throw new Error(`Open-Meteo ${res.status}: ${await res.text()}`);
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    const res = await fetch(OPEN_METEO_URL, { signal: AbortSignal.timeout(15000) });
+    if (res.ok) return res.json();
+
+    const body = await res.text();
+    if (attempt < MAX_RETRIES && res.status >= 500) {
+      console.log(`Open-Meteo ${res.status}, retrying in ${RETRY_DELAY_MS / 1000}s (attempt ${attempt}/${MAX_RETRIES})...`);
+      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+      continue;
+    }
+    throw new Error(`Open-Meteo ${res.status}: ${body}`);
   }
-  return res.json();
 }
 
 function formatScene(data) {
@@ -125,7 +137,10 @@ function formatScene(data) {
   const conditions = WMO_CONDITIONS.get(code) || "unknown conditions";
   const windLine = describeWind(wind);
 
-  let scene = `It's currently ${temp}${TEMP_SYMBOL} and ${conditions} in ${CONFIG.locationName}.`;
+  const location = CONFIG.locationRegion
+    ? `${CONFIG.locationName}, ${CONFIG.locationRegion}`
+    : CONFIG.locationName;
+  let scene = `It's currently ${temp}${TEMP_SYMBOL} and ${conditions} in ${location}.`;
   if (windLine) scene += ` ${windLine}`;
 
   return scene;
