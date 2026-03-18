@@ -1,17 +1,19 @@
-// weather-kin: Polls Open-Meteo for weather in Nanaimo, BC and updates
-// Derek Stone's Current Setting on Kindroid with a natural language scene.
+// weather-kin: Polls Open-Meteo for weather at set latitude and longitude and updates
+// Kin's Current Setting on Kindroid with a natural language scene.
 //
 // Required env vars:
 //   KINDROID_API_KEY  - Your Kindroid API key
-//   KINDROID_AI_ID    - Derek's AI ID
+//   KINDROID_AI_ID    - Kin's AI ID
 //
-// Runs every 6 hours. No weather API key needed (Open-Meteo is free).
+// Runs every 6 hours. No weather API key needed (Open-Meteo is free and requires no account).
 
 const KINDROID_BASE = "https://api.kindroid.ai/v1";
 const OPEN_METEO_URL =
   "https://api.open-meteo.com/v1/forecast" +
+  // IMPORTANT: Set latitude and longitude of desired location below:
   "?latitude=49.16&longitude=-123.94" +
   "&current=temperature_2m,weather_code,wind_speed_10m" +
+  // IMPORTANT: Set temperature scale (celsius or fahrenheit) below, as well as wind speed (kmh or mph):
   "&temperature_unit=celsius&wind_speed_unit=kmh";
 
 const INTERVAL_HOURS = 6;
@@ -90,7 +92,7 @@ function formatScene(data) {
 
   const conditions = WMO_CONDITIONS.get(code) || "unknown conditions";
   const windLine = describeWind(wind);
-
+// IMPORTANT: Replace "Seabreak" with desired location name.
   let scene = `It's currently ${temp}°C and ${conditions} in Seabreak.`;
   if (windLine) scene += ` ${windLine}`;
 
@@ -140,9 +142,13 @@ async function tick() {
   }
 }
 
-// Run immediately, then every 6 hours
-tick();
+// --- Scheduling ---
+// To change how often the weather updates, change the number below.
+// Default is 6 (hours). For every 3 hours, change it to 3, etc.
+// Runs immediately, then at set intervals
+const INTERVAL_HOURS = 6;
 
+tick();
 const intervalMs = INTERVAL_HOURS * 60 * 60 * 1000;
 console.log(`Scheduling every ${INTERVAL_HOURS}h (${intervalMs}ms)`);
 setInterval(tick, intervalMs);
