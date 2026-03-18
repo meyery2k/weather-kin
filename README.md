@@ -6,7 +6,7 @@ Uses [Open-Meteo](https://open-meteo.com/) — a free weather API that requires 
 
 ### Example
 
-> It's currently 12°C and rainy in Seabreak. It's windy outside.
+> It's currently 12°C and rainy in Seabreak, British Columbia. It's windy outside.
 
 ---
 
@@ -73,6 +73,7 @@ Go to your service's **Variables** tab and add the following:
 | `TEMPERATURE_UNIT` | `celsius` | `celsius` or `fahrenheit` |
 | `WIND_SPEED_UNIT` | `kmh` | `kmh` or `mph` |
 | `UPDATE_HOURS` | `0,6,12,18` | Comma-separated hours (0–23) to update weather |
+| `LOCATION_REGION` | `British Columbia` | Region or country can be put here |
 
 Here's what it looks like on Railway:
 
