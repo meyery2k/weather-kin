@@ -13,6 +13,7 @@
 //   TEMPERATURE_UNIT    - "celsius" or "fahrenheit" (default: celsius)
 //   WIND_SPEED_UNIT     - "kmh" or "mph" (default: kmh)
 //   UPDATE_HOURS        - Comma-separated hours to update (default: "0,6,12,18")
+//   FORECAST_HOUR       - Hour (0-23) to send a daily forecast instead of current conditions
 //
 // No weather API key needed (Open-Meteo is free and requires no account).
 
@@ -55,12 +56,25 @@ const CONFIG = {
       return n;
     })
     .sort((a, b) => a - b),
+  forecastHour: process.env.FORECAST_HOUR != null
+    ? (() => {
+        const n = Number(process.env.FORECAST_HOUR);
+        if (isNaN(n) || n < 0 || n > 23) {
+          console.error(`Invalid FORECAST_HOUR: "${process.env.FORECAST_HOUR}"`);
+          process.exit(1);
+        }
+        return n;
+      })()
+    : null,
 };
 
 const OPEN_METEO_URL =
   "https://api.open-meteo.com/v1/forecast" +
   `?latitude=${CONFIG.latitude}&longitude=${CONFIG.longitude}` +
   "&current=temperature_2m,weather_code,wind_speed_10m" +
+  (CONFIG.forecastHour != null
+    ? "&daily=temperature_2m_max,temperature_2m_min,weather_code,wind_speed_10m_max&forecast_days=1"
+    : "") +
   `&temperature_unit=${CONFIG.temperatureUnit}&wind_speed_unit=${CONFIG.windSpeedUnit}`;
 
 const TEMP_SYMBOL = CONFIG.temperatureUnit === "fahrenheit" ? "°F" : "°C";
@@ -130,6 +144,10 @@ async function fetchWeather() {
   }
 }
 
+function buildLocationParts() {
+  return [CONFIG.locationName, CONFIG.locationRegion].filter(Boolean);
+}
+
 function formatScene(data) {
   const current = data.current;
   const temp = Math.round(current.temperature_2m);
@@ -137,12 +155,37 @@ function formatScene(data) {
   const wind = current.wind_speed_10m;
 
   const conditions = WMO_CONDITIONS.get(code) || "unknown conditions";
-  const windLine = describeWind(wind);
+  const windPart = describeWind(wind);
 
-  const locationParts = [CONFIG.locationName, CONFIG.locationRegion].filter(Boolean);
-  const locationSuffix = locationParts.length ? ` here in ${locationParts.join(", ")}` : " outside";
-  const windPart = windLine ? `, ${windLine}` : "";
-  let scene = `It's currently ${temp}${TEMP_SYMBOL} and ${conditions}${locationSuffix}${windPart}.`;
+  const location = buildLocationParts();
+  const locationSuffix = location.length ? ` here in ${location.join(", ")}` : " outside";
+  return `It's currently ${temp}${TEMP_SYMBOL} and ${conditions}${locationSuffix}${windPart ? `, ${windPart}` : ""}.`;
+}
+
+function describeForecastWind(maxSpeed) {
+  const isKmh = CONFIG.windSpeedUnit === "kmh";
+  const moderate = isKmh ? 30 : 19;
+  const strong = isKmh ? 50 : 31;
+
+  if (maxSpeed < moderate) return null;
+  if (maxSpeed < strong) return "It's expected to be windy.";
+  return "Strong winds are expected.";
+}
+
+function formatForecast(data) {
+  const daily = data.daily;
+  const high = Math.round(daily.temperature_2m_max[0]);
+  const low = Math.round(daily.temperature_2m_min[0]);
+  const code = daily.weather_code[0];
+  const maxWind = daily.wind_speed_10m_max[0];
+
+  const conditions = WMO_CONDITIONS.get(code) || "unknown conditions";
+  const windLine = describeForecastWind(maxWind);
+
+  const location = buildLocationParts();
+  const locationSuffix = location.length ? ` for ${location.join(", ")}` : "";
+  let scene = `Today's forecast${locationSuffix}: a high of ${high}${TEMP_SYMBOL} and a low of ${low}${TEMP_SYMBOL}, ${conditions}.`;
+  if (windLine) scene += ` ${windLine}`;
 
   return scene;
 }
@@ -202,9 +245,11 @@ let lastScene = null;
 async function tick() {
   const timestamp = new Date().toISOString();
   try {
-    console.log(`[${timestamp}] Fetching weather...`);
+    const isForecastTick =
+      CONFIG.forecastHour != null && new Date().getHours() === CONFIG.forecastHour;
+    console.log(`[${timestamp}] Fetching weather${isForecastTick ? " (forecast)" : ""}...`);
     const data = await fetchWeather();
-    lastScene = formatScene(data);
+    lastScene = isForecastTick ? formatForecast(data) : formatScene(data);
     console.log(`[${timestamp}] Scene: "${lastScene}"`);
 
     await updateCurrentScene(lastScene);
