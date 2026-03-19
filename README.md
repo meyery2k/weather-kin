@@ -6,7 +6,7 @@ Uses [Open-Meteo](https://open-meteo.com/) — a free weather API that requires 
 
 ### Example
 
-> It's currently 12°C and rainy in Seabreak, British Columbia. It's windy outside.
+> It's currently 12°C and rainy outside, with a light breeze.
 
 ---
 
