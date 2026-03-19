@@ -16,6 +16,8 @@
 //
 // No weather API key needed (Open-Meteo is free and requires no account).
 
+const http = require("http");
+
 const KINDROID_BASE = "https://api.kindroid.ai/v1";
 
 // --- Config ---
@@ -215,6 +217,19 @@ async function tick() {
     }
   }
 }
+
+// --- Health check server (keeps Railway happy) ---
+
+const PORT = process.env.PORT || 3000;
+
+http.createServer((req, res) => {
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ status: "ok", lastScene }));
+}).listen(PORT, () => {
+  console.log(`Health check listening on port ${PORT}`);
+});
+
+// --- Start ---
 
 console.log(`Update schedule: ${CONFIG.updateHours.map((h) => `${h}:00`).join(", ")}`);
 tick();
