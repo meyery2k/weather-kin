@@ -140,7 +140,7 @@ function formatScene(data) {
   const windLine = describeWind(wind);
 
   const locationParts = [CONFIG.locationName, CONFIG.locationRegion].filter(Boolean);
-  const locationSuffix = locationParts.length ? ` in ${locationParts.join(", ")}` : " outside";
+  const locationSuffix = locationParts.length ? ` here in ${locationParts.join(", ")}` : " outside";
   const windPart = windLine ? `, ${windLine}` : "";
   let scene = `It's currently ${temp}${TEMP_SYMBOL} and ${conditions}${locationSuffix}${windPart}.`;
 
