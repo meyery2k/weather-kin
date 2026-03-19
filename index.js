@@ -105,9 +105,9 @@ function describeWind(speed) {
   const strong = isKmh ? 50 : 31;
 
   if (speed < light) return null;
-  if (speed < moderate) return "There's a light breeze.";
-  if (speed < strong) return "It's windy outside.";
-  return "It's really blustery out.";
+  if (speed < moderate) return "with a light breeze";
+  if (speed < strong) return "with strong winds";
+  return "with heavy gusts";
 }
 
 // --- Weather ---
@@ -140,9 +140,9 @@ function formatScene(data) {
   const windLine = describeWind(wind);
 
   const locationParts = [CONFIG.locationName, CONFIG.locationRegion].filter(Boolean);
-  const locationSuffix = locationParts.length ? ` in ${locationParts.join(", ")}` : " here";
-  let scene = `It's currently ${temp}${TEMP_SYMBOL} and ${conditions}${locationSuffix}.`;
-  if (windLine) scene += ` ${windLine}`;
+  const locationSuffix = locationParts.length ? ` in ${locationParts.join(", ")}` : " outside";
+  const windPart = windLine ? `, ${windLine}` : "";
+  let scene = `It's currently ${temp}${TEMP_SYMBOL} and ${conditions}${locationSuffix}${windPart}.`;
 
   return scene;
 }
