@@ -70,6 +70,12 @@ const CONFIG = {
     : null,
 };
 
+// Ensure FORECAST_HOUR is included in the update schedule
+if (CONFIG.forecastHour != null && !CONFIG.updateHours.includes(CONFIG.forecastHour)) {
+  CONFIG.updateHours.push(CONFIG.forecastHour);
+  CONFIG.updateHours.sort((a, b) => a - b);
+}
+
 const OPEN_METEO_URL =
   "https://api.open-meteo.com/v1/forecast" +
   `?latitude=${CONFIG.latitude}&longitude=${CONFIG.longitude}` +
