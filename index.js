@@ -112,6 +112,8 @@ const WMO_CONDITIONS = new Map([
   [99, "thunderstorming with hail"],
 ]);
 
+// --- Wind ---
+
 function describeWind(speed) {
   const isKmh = CONFIG.windSpeedUnit === "kmh";
   const light = isKmh ? 15 : 9;
@@ -122,6 +124,195 @@ function describeWind(speed) {
   if (speed < moderate) return "with a light breeze";
   if (speed < strong) return "with strong winds";
   return "with heavy gusts";
+}
+
+function windLabel(windPart) {
+  if (windPart === null) return "null";
+  if (windPart === "with a light breeze") return "light breeze";
+  if (windPart === "with strong winds") return "strong winds";
+  if (windPart === "with heavy gusts") return "heavy gusts";
+  return "null";
+}
+
+function bareWindLabel(windPart) {
+  if (windPart === "with a light breeze") return "a light breeze";
+  if (windPart === "with strong winds") return "strong winds";
+  if (windPart === "with heavy gusts") return "heavy gusts";
+  return null;
+}
+
+// --- Transition System: Layer 2 — Lateral moves ---
+
+const LATERAL_TRANSITIONS = new Map([
+  // Rain <-> Snow
+  ["rainy->snowing", "The rain has turned to snow."],
+  ["rainy->snowing heavily", "The rain has turned to heavy snow."],
+  ["rainy->snowing lightly", "The rain has turned to light snow."],
+  ["snowing->rainy", "The snow has turned to rain."],
+  ["snowing heavily->rainy", "The snow has turned to rain."],
+  ["snowing lightly->rainy", "The snow has turned to rain."],
+
+  // Drizzle <-> Freezing drizzle
+  ["drizzling->freezing drizzle", "The drizzle has turned to freezing drizzle."],
+  ["freezing drizzle->drizzling", "The freezing drizzle has warmed up to regular drizzle."],
+
+  // Rain <-> Freezing rain
+  ["rainy->freezing rain", "The rain has turned to freezing rain."],
+  ["freezing rain->rainy", "The freezing rain has warmed up to regular rain."],
+
+  // Overcast <-> Fog
+  ["overcast->foggy", "Fog is settling in."],
+  ["foggy->overcast", "The fog is lifting."],
+
+  // Rain <-> Showers
+  ["rainy->showery", "The steady rain has broken up into showers."],
+  ["showery->rainy", "The showers have settled into steady rain."],
+
+  // Drizzle <-> Showers
+  ["drizzling->showery", "The drizzle has picked up into showers."],
+  ["showery->drizzling", "The showers have eased to a drizzle."],
+
+  // Drizzle <-> Rain
+  ["drizzling->rainy", "The drizzle has picked up into rain."],
+  ["rainy->drizzling", "The rain has eased to a drizzle."],
+
+  // Thunderstorm <-> Thunderstorm with hail
+  ["thunderstorming->thunderstorming with hail", "Hail is now mixed in with the storm."],
+  ["thunderstorming with hail->thunderstorming", "The hail has stopped but the storm continues."],
+
+  // Snow intensity shifts
+  ["snowing->snowing heavily", "The snow is getting heavier."],
+  ["snowing heavily->snowing", "The heavy snow is easing up."],
+  ["snowing lightly->snowing", "The snow is picking up."],
+  ["snowing->snowing lightly", "The snow is tapering off."],
+  ["snowing lightly->snowing heavily", "The snow is getting much heavier."],
+  ["snowing heavily->snowing lightly", "The heavy snow is tapering off."],
+
+  // Snow <-> Freezing precipitation
+  ["snowing->freezing rain", "The snow has turned to freezing rain."],
+  ["freezing rain->snowing", "The freezing rain has turned to snow."],
+  ["snowing->freezing drizzle", "The snow has turned to freezing drizzle."],
+  ["freezing drizzle->snowing", "The freezing drizzle has turned to snow."],
+]);
+
+// --- Transition System: Layer 3 — Severity-ranked escalation/de-escalation ---
+
+const SEVERITY_RANK = new Map([
+  ["clear", 0],
+  ["mostly clear", 1],
+  ["partly cloudy", 2],
+  ["overcast", 3],
+  ["foggy", 4],
+  ["drizzling", 5],
+  ["freezing drizzle", 6],
+  ["rainy", 7],
+  ["freezing rain", 8],
+  ["showery", 9],
+  ["snowing lightly", 10],
+  ["snowing", 11],
+  ["snowing heavily", 12],
+  ["thunderstorming", 13],
+  ["thunderstorming with hail", 14],
+]);
+
+const SEVERITY_THRESHOLD = 3;
+
+const ARRIVAL_PHRASES = new Map([
+  ["clear", "The skies have cleared."],
+  ["mostly clear", "The skies have mostly cleared."],
+  ["partly cloudy", "The clouds are starting to break up."],
+  ["overcast", "The skies have clouded over."],
+  ["foggy", "Fog is rolling in."],
+  ["drizzling", "It's started to drizzle."],
+  ["freezing drizzle", "Freezing drizzle has moved in."],
+  ["rainy", "Rain has moved in."],
+  ["freezing rain", "Freezing rain has moved in."],
+  ["showery", "Showers have moved in."],
+  ["snowing lightly", "Light snow has started falling."],
+  ["snowing", "It's started to snow."],
+  ["snowing heavily", "Heavy snow has moved in."],
+  ["thunderstorming", "A thunderstorm has rolled in."],
+  ["thunderstorming with hail", "A thunderstorm with hail has rolled in."],
+]);
+
+const DEPARTURE_PHRASES = new Map([
+  ["clear", "The skies have cleared."],
+  ["mostly clear", "The skies are clearing."],
+  ["partly cloudy", "Things are starting to clear up."],
+  ["overcast", "The skies have clouded over, but the precipitation has stopped."],
+  ["foggy", "The fog is lifting."],
+  ["drizzling", "The drizzle has let up."],
+  ["freezing drizzle", "The freezing drizzle has let up."],
+  ["rainy", "The rain has stopped."],
+  ["freezing rain", "The freezing rain has stopped."],
+  ["showery", "The showers have passed."],
+  ["snowing lightly", "The snow has tapered off."],
+  ["snowing", "The snow has stopped."],
+  ["snowing heavily", "The heavy snow has stopped."],
+  ["thunderstorming", "The storm has passed."],
+  ["thunderstorming with hail", "The storm has passed."],
+]);
+
+// --- Wind Transition System ---
+
+const WIND_ESCALATION = new Map([
+  ["null->light breeze", "A breeze has picked up."],
+  ["null->strong winds", "Strong winds have picked up."],
+  ["null->heavy gusts", "Heavy gusts have rolled in."],
+  ["light breeze->strong winds", "The winds are getting stronger."],
+  ["light breeze->heavy gusts", "Heavy gusts have rolled in."],
+  ["strong winds->heavy gusts", "The winds are picking up to heavy gusts."],
+]);
+
+const WIND_DEESCALATION = new Map([
+  ["light breeze->null", "The breeze has settled."],
+  ["strong winds->null", "The strong winds have died down."],
+  ["strong winds->light breeze", "The strong winds have eased up."],
+  ["heavy gusts->null", "The heavy gusts have died down."],
+  ["heavy gusts->light breeze", "The heavy gusts have eased up."],
+  ["heavy gusts->strong winds", "The heavy gusts have let up."],
+]);
+
+// --- Merged Transition Phrases (same-direction condition + wind) ---
+
+const MERGED_ESCALATION = new Map([
+  ["overcast", "Overcast skies and {wind} have moved in."],
+  ["foggy", "Fog and {wind} have rolled in."],
+  ["drizzling", "Drizzle and {wind} have set in."],
+  ["freezing drizzle", "Freezing drizzle and {wind} have moved in."],
+  ["rainy", "Rain and {wind} have moved in."],
+  ["freezing rain", "Freezing rain and {wind} have moved in."],
+  ["showery", "Showers and {wind} have moved in."],
+  ["snowing lightly", "Light snow and {wind} have moved in."],
+  ["snowing", "Snow and {wind} have moved in."],
+  ["snowing heavily", "Heavy snow and {wind} have moved in."],
+  ["thunderstorming", "A thunderstorm and {wind} have rolled in."],
+  ["thunderstorming with hail", "A thunderstorm with hail and {wind} have rolled in."],
+]);
+
+const MERGED_DEESCALATION = new Map([
+  ["drizzling", "The drizzle and {wind} have let up."],
+  ["freezing drizzle", "The freezing drizzle and {wind} have let up."],
+  ["rainy", "The rain and {wind} have let up."],
+  ["freezing rain", "The freezing rain and {wind} have let up."],
+  ["showery", "The showers and {wind} have let up."],
+  ["snowing lightly", "The light snow and {wind} have let up."],
+  ["snowing", "The snow and {wind} have let up."],
+  ["snowing heavily", "The heavy snow and {wind} have let up."],
+  ["thunderstorming", "The storm and {wind} have passed."],
+  ["thunderstorming with hail", "The storm and {wind} have passed."],
+  ["foggy", "The fog and {wind} have let up."],
+  ["overcast", "The overcast skies and {wind} have let up."],
+]);
+
+// --- Transition helpers ---
+
+function stripPeriod(s) {
+  return s.endsWith(".") ? s.slice(0, -1) : s;
+}
+
+function lowercaseFirst(s) {
+  return s.charAt(0).toLowerCase() + s.slice(1);
 }
 
 // --- Weather ---
@@ -148,6 +339,15 @@ function buildLocationParts() {
   return [CONFIG.locationName, CONFIG.locationRegion].filter(Boolean);
 }
 
+// --- Transition state (persists between ticks) ---
+// UNSET distinguishes "never observed" from "observed as null (calm)".
+
+const UNSET = Symbol("unset");
+let lastCondition = UNSET;
+let lastWindDescription = UNSET;
+
+// --- Scene formatting with transitions ---
+
 function formatScene(data) {
   const current = data.current;
   const temp = Math.round(current.temperature_2m);
@@ -159,8 +359,137 @@ function formatScene(data) {
 
   const location = buildLocationParts();
   const locationSuffix = location.length ? ` here in ${location.join(", ")}` : " outside";
-  return `It's currently ${temp}${TEMP_SYMBOL} and ${conditions}${locationSuffix}${windPart ? `, ${windPart}` : ""}.`;
+
+  const currentWindLabel = windLabel(windPart);
+  const lastWindLabel = windLabel(lastWindDescription);
+
+  const conditionChanged = lastCondition !== UNSET && lastCondition !== conditions;
+  const windChanged = lastWindDescription !== UNSET && lastWindLabel !== currentWindLabel;
+
+  // --- Determine condition transition type and phrase ---
+  let conditionTransition = null;
+  let conditionDirection = null;
+
+  if (conditionChanged) {
+    const lateralKey = `${lastCondition}->${conditions}`;
+    if (LATERAL_TRANSITIONS.has(lateralKey)) {
+      conditionTransition = LATERAL_TRANSITIONS.get(lateralKey);
+      conditionDirection = "lateral";
+    } else {
+      const oldRank = SEVERITY_RANK.get(lastCondition);
+      const newRank = SEVERITY_RANK.get(conditions);
+      if (oldRank != null && newRank != null && Math.abs(newRank - oldRank) >= SEVERITY_THRESHOLD) {
+        if (newRank > oldRank) {
+          conditionTransition = ARRIVAL_PHRASES.get(conditions);
+          conditionDirection = "escalation";
+        } else {
+          conditionTransition = DEPARTURE_PHRASES.get(lastCondition);
+          conditionDirection = "deescalation";
+        }
+      }
+    }
+  }
+
+  // --- Determine wind transition type and phrase ---
+  let windTransition = null;
+  let windDirection = null;
+
+  if (windChanged) {
+    const windKey = `${lastWindLabel}->${currentWindLabel}`;
+    if (WIND_ESCALATION.has(windKey)) {
+      windTransition = WIND_ESCALATION.get(windKey);
+      windDirection = "escalation";
+    } else if (WIND_DEESCALATION.has(windKey)) {
+      windTransition = WIND_DEESCALATION.get(windKey);
+      windDirection = "deescalation";
+    }
+  }
+
+  let scene;
+
+  // --- Handle dual transitions (both condition and wind changed) ---
+  if (conditionTransition && windTransition) {
+    const sameDirection =
+      (conditionDirection === "escalation" && windDirection === "escalation") ||
+      (conditionDirection === "deescalation" && windDirection === "deescalation");
+
+    if (sameDirection && conditionDirection === "escalation") {
+      // Same-direction escalation: merged template, drop both from base
+      const template = MERGED_ESCALATION.get(conditions);
+      if (template) {
+        const mergedPhrase = template.replace("{wind}", bareWindLabel(windPart));
+        scene = `It's currently ${temp}${TEMP_SYMBOL}${locationSuffix}. ${mergedPhrase}`;
+      }
+    }
+
+    if (!scene && sameDirection && conditionDirection === "deescalation") {
+      // Same-direction de-escalation: merged template, keep both in base
+      const template = MERGED_DEESCALATION.get(lastCondition);
+      if (template) {
+        const mergedPhrase = template.replace("{wind}", bareWindLabel(lastWindDescription));
+        const windInBase = windPart ? `, ${windPart}` : "";
+        scene = `It's currently ${temp}${TEMP_SYMBOL} and ${conditions}${locationSuffix}${windInBase}. ${mergedPhrase}`;
+      }
+    }
+
+    if (!scene) {
+      // Cross-direction or lateral + wind: semicolon-join
+      const includeConditionInBase = conditionDirection === "deescalation";
+      const includeWindInBase = windDirection === "deescalation";
+      const effectiveWindPart = includeWindInBase && windPart ? `, ${windPart}` : "";
+
+      if (includeConditionInBase) {
+        scene = `It's currently ${temp}${TEMP_SYMBOL} and ${conditions}${locationSuffix}${effectiveWindPart}.`;
+      } else {
+        scene = `It's currently ${temp}${TEMP_SYMBOL}${locationSuffix}${effectiveWindPart}.`;
+      }
+
+      const joined = stripPeriod(conditionTransition) + "; " + lowercaseFirst(stripPeriod(windTransition)) + ".";
+      scene += ` ${joined}`;
+    }
+  }
+
+  // --- Handle condition-only transition ---
+  else if (conditionTransition && !windTransition) {
+    const windInBase = windPart ? `, ${windPart}` : "";
+
+    if (conditionDirection === "escalation") {
+      // Arrival: drop condition from base
+      scene = `It's currently ${temp}${TEMP_SYMBOL}${locationSuffix}${windInBase}. ${conditionTransition}`;
+    } else if (conditionDirection === "deescalation") {
+      // Departure: keep condition in base
+      scene = `It's currently ${temp}${TEMP_SYMBOL} and ${conditions}${locationSuffix}${windInBase}. ${conditionTransition}`;
+    } else if (conditionDirection === "lateral") {
+      // Lateral: drop condition from base
+      scene = `It's currently ${temp}${TEMP_SYMBOL}${locationSuffix}${windInBase}. ${conditionTransition}`;
+    }
+  }
+
+  // --- Handle wind-only transition ---
+  else if (windTransition && !conditionTransition) {
+    if (windDirection === "escalation") {
+      // Drop wind from base
+      scene = `It's currently ${temp}${TEMP_SYMBOL} and ${conditions}${locationSuffix}. ${windTransition}`;
+    } else {
+      // Keep wind in base
+      const windInBase = windPart ? `, ${windPart}` : "";
+      scene = `It's currently ${temp}${TEMP_SYMBOL} and ${conditions}${locationSuffix}${windInBase}. ${windTransition}`;
+    }
+  }
+
+  // --- No transitions (steady state or cold start) ---
+  if (!scene) {
+    scene = `It's currently ${temp}${TEMP_SYMBOL} and ${conditions}${locationSuffix}${windPart ? `, ${windPart}` : ""}.`;
+  }
+
+  // --- Update state ---
+  lastCondition = conditions;
+  lastWindDescription = windPart;
+
+  return scene;
 }
+
+// --- Forecast ---
 
 function describeForecastWind(maxSpeed) {
   const isKmh = CONFIG.windSpeedUnit === "kmh";
@@ -184,7 +513,7 @@ function formatForecast(data) {
 
   const location = buildLocationParts();
   const locationSuffix = location.length ? ` for ${location.join(", ")}` : "";
-  let scene = `Today's forecast${locationSuffix}: a high of ${high}${TEMP_SYMBOL} and a low of ${low}${TEMP_SYMBOL}, ${conditions}.`;
+  let scene = `Today's weather forecast${locationSuffix}: a high of ${high}${TEMP_SYMBOL} and a low of ${low}${TEMP_SYMBOL}, ${conditions}.`;
   if (windLine) scene += ` ${windLine}`;
 
   return scene;
