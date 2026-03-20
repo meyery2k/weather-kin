@@ -10,7 +10,7 @@ Uses [Open-Meteo](https://open-meteo.com/) — a free weather API that requires 
 
 > It's currently 8°C here in Seabreak, British Columbia. Fog is rolling in.
 
-> Today's forecast for Seabreak, British Columbia: a high of 14°C and a low of 5°C, rainy. It's expected to be windy.
+> Today's weather forecast for Seabreak, British Columbia: a high of 14°C and a low of 5°C, rainy. It's expected to be windy.
 
 ---
 
