@@ -270,7 +270,7 @@ const DEPARTURE_PHRASES = new Map([
   ["clear", "The skies have cleared."],
   ["mostly clear", "The skies are clearing."],
   ["partly cloudy", "Things are starting to clear up."],
-  ["overcast", "The skies have clouded over, but the precipitation has stopped."],
+  ["overcast", "The skies have cleared up."],
   ["foggy", "The fog is lifting."],
   ["drizzling", "The drizzle has let up."],
   ["freezing drizzle", "The freezing drizzle has let up."],
@@ -518,7 +518,7 @@ function formatScene(data) {
 
     if (!scene) {
       // Cross-direction: semicolon-join
-      const includeConditionInBase = conditionDirection === "deescalation";
+      const includeConditionInBase = conditionDirection === "deescalation" && lastCondition !== "overcast";
       const includeWindInBase = windDirection === "deescalation";
       const effectiveWindPart = includeWindInBase && windPart ? `, ${windPart}` : "";
 
@@ -541,8 +541,12 @@ function formatScene(data) {
       // Arrival: drop condition from base
       scene = `It's currently ${temp}${TEMP_SYMBOL}${locationSuffix}${windInBase}. ${conditionTransition}`;
     } else if (conditionDirection === "deescalation") {
-      // Departure: keep condition in base
-      scene = `It's currently ${temp}${TEMP_SYMBOL} and ${conditions}${locationSuffix}${windInBase}. ${conditionTransition}`;
+      // Departure: keep condition in base unless the phrase already implies it (e.g. overcast → clear)
+      if (lastCondition === "overcast") {
+        scene = `It's currently ${temp}${TEMP_SYMBOL}${locationSuffix}${windInBase}. ${conditionTransition}`;
+      } else {
+        scene = `It's currently ${temp}${TEMP_SYMBOL} and ${conditions}${locationSuffix}${windInBase}. ${conditionTransition}`;
+      }
     } else if (conditionDirection === "lateral") {
       // Lateral: drop condition from base
       scene = `It's currently ${temp}${TEMP_SYMBOL}${locationSuffix}${windInBase}. ${conditionTransition}`;
