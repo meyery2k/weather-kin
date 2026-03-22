@@ -434,7 +434,7 @@ function formatScene(data) {
   const windPart = describeWind(wind);
 
   const location = buildLocationParts();
-  const locationSuffix = location.length ? ` outside in ${location.join(", ")}` : " outside";
+  const locationSuffix = location.length ? ` here in ${location.join(", ")}` : " outside";
 
   const currentWindLabel = windLabel(windPart);
   const lastWindLabel = windLabel(lastWindDescription);
@@ -494,7 +494,7 @@ function formatScene(data) {
       const template = MERGED_ESCALATION.get(conditions);
       if (template) {
         const mergedPhrase = template.replace("{wind}", bareWindLabel(windPart));
-        scene = `It's currently ${temp}${TEMP_SYMBOL}${locationSuffix}. ${mergedPhrase}`;
+        scene = `Current weather is ${temp}${TEMP_SYMBOL}${locationSuffix}. ${mergedPhrase}`;
       }
     }
 
@@ -504,7 +504,7 @@ function formatScene(data) {
       if (template) {
         const mergedPhrase = template.replace("{wind}", bareWindLabel(lastWindDescription));
         const windInBase = windPart ? `, ${windPart}` : "";
-        scene = `It's currently ${temp}${TEMP_SYMBOL} and ${conditions}${locationSuffix}${windInBase}. ${mergedPhrase}`;
+        scene = `Current weather is ${temp}${TEMP_SYMBOL} and ${conditions}${locationSuffix}${windInBase}. ${mergedPhrase}`;
       }
     }
 
@@ -513,7 +513,7 @@ function formatScene(data) {
       // Drop wind from base on escalation (transition announces it);
       // keep wind in base on de-escalation (transition describes what left).
       const windInBase = windDirection === "deescalation" && windPart ? `, ${windPart}` : "";
-      scene = `It's currently ${temp}${TEMP_SYMBOL}${locationSuffix}${windInBase}. ${conditionTransition} ${windTransition}`;
+      scene = `Current weather is ${temp}${TEMP_SYMBOL}${locationSuffix}${windInBase}. ${conditionTransition} ${windTransition}`;
     }
 
     if (!scene) {
@@ -523,9 +523,9 @@ function formatScene(data) {
       const effectiveWindPart = includeWindInBase && windPart ? `, ${windPart}` : "";
 
       if (includeConditionInBase) {
-        scene = `It's currently ${temp}${TEMP_SYMBOL} and ${conditions}${locationSuffix}${effectiveWindPart}.`;
+        scene = `Current weather is ${temp}${TEMP_SYMBOL} and ${conditions}${locationSuffix}${effectiveWindPart}.`;
       } else {
-        scene = `It's currently ${temp}${TEMP_SYMBOL}${locationSuffix}${effectiveWindPart}.`;
+        scene = `Current weather is ${temp}${TEMP_SYMBOL}${locationSuffix}${effectiveWindPart}.`;
       }
 
       const joined = stripPeriod(conditionTransition) + "; " + lowercaseFirst(stripPeriod(windTransition)) + ".";
@@ -539,17 +539,17 @@ function formatScene(data) {
 
     if (conditionDirection === "escalation") {
       // Arrival: drop condition from base
-      scene = `It's currently ${temp}${TEMP_SYMBOL}${locationSuffix}${windInBase}. ${conditionTransition}`;
+      scene = `Current weather is ${temp}${TEMP_SYMBOL}${locationSuffix}${windInBase}. ${conditionTransition}`;
     } else if (conditionDirection === "deescalation") {
       // Departure: keep condition in base unless the phrase already implies it (e.g. overcast → clear)
       if (lastCondition === "overcast") {
-        scene = `It's currently ${temp}${TEMP_SYMBOL}${locationSuffix}${windInBase}. ${conditionTransition}`;
+        scene = `Current weather is ${temp}${TEMP_SYMBOL}${locationSuffix}${windInBase}. ${conditionTransition}`;
       } else {
-        scene = `It's currently ${temp}${TEMP_SYMBOL} and ${conditions}${locationSuffix}${windInBase}. ${conditionTransition}`;
+        scene = `Current weather is ${temp}${TEMP_SYMBOL} and ${conditions}${locationSuffix}${windInBase}. ${conditionTransition}`;
       }
     } else if (conditionDirection === "lateral") {
       // Lateral: drop condition from base
-      scene = `It's currently ${temp}${TEMP_SYMBOL}${locationSuffix}${windInBase}. ${conditionTransition}`;
+      scene = `Current weather is ${temp}${TEMP_SYMBOL}${locationSuffix}${windInBase}. ${conditionTransition}`;
     }
   }
 
@@ -557,17 +557,17 @@ function formatScene(data) {
   else if (windTransition && !conditionTransition) {
     if (windDirection === "escalation") {
       // Drop wind from base
-      scene = `It's currently ${temp}${TEMP_SYMBOL} and ${conditions}${locationSuffix}. ${windTransition}`;
+      scene = `Current weather is ${temp}${TEMP_SYMBOL} and ${conditions}${locationSuffix}. ${windTransition}`;
     } else {
       // Keep wind in base
       const windInBase = windPart ? `, ${windPart}` : "";
-      scene = `It's currently ${temp}${TEMP_SYMBOL} and ${conditions}${locationSuffix}${windInBase}. ${windTransition}`;
+      scene = `Current weather is ${temp}${TEMP_SYMBOL} and ${conditions}${locationSuffix}${windInBase}. ${windTransition}`;
     }
   }
 
   // --- No transitions (steady state or cold start) ---
   if (!scene) {
-    scene = `It's currently ${temp}${TEMP_SYMBOL} and ${conditions}${locationSuffix}${windPart ? `, ${windPart}` : ""}.`;
+    scene = `Current weather is ${temp}${TEMP_SYMBOL} and ${conditions}${locationSuffix}${windPart ? `, ${windPart}` : ""}.`;
   }
 
   // --- Update state ---
