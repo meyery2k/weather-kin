@@ -434,7 +434,7 @@ function formatScene(data) {
   const windPart = describeWind(wind);
 
   const location = buildLocationParts();
-  const locationSuffix = location.length ? ` here in ${location.join(", ")}` : " outside";
+  const locationSuffix = location.length ? ` outside in ${location.join(", ")}` : " outside";
 
   const currentWindLabel = windLabel(windPart);
   const lastWindLabel = windLabel(lastWindDescription);
