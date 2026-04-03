@@ -125,6 +125,32 @@ const VC_ICON_TO_WMO = new Map([
   ["hail", 99],
 ]);
 
+// Refine VC icon-based WMO code using the richer `conditions` text field.
+// VC's conditions string distinguishes Drizzle / Rain / Rain Showers, which
+// the icon field collapses into just "rain" and "showers-day/night".
+function refineVCWeatherCode(icon, conditions) {
+  const base = VC_ICON_TO_WMO.get(icon) ?? 0;
+  if (!conditions) return base;
+
+  const c = conditions.toLowerCase();
+
+  // Freezing drizzle (check before generic drizzle to avoid false match)
+  if (c.includes("freezing drizzle")) return 56;
+
+  // Drizzle family → WMO 53 ("drizzling")
+  if (c.includes("drizzle")) return 53;
+
+  // Rain Showers → WMO 80 ("showery")
+  if (c.includes("rain showers")) return 80;
+
+  // Rain intensity variants (exclude freezing rain — handled by icon path)
+  if (c.includes("heavy rain") && !c.includes("freezing")) return 65;
+  if (c.includes("light rain") && !c.includes("freezing")) return 61;
+  if (c.includes("rain") && !c.includes("freezing") && !c.includes("showers")) return 63;
+
+  return base;
+}
+
 // --- WMO Weather Code mapping ---
 
 const WMO_CONDITIONS = new Map([
@@ -446,7 +472,7 @@ async function fetchVisualCrossing() {
   const normalized = {
     current: {
       temperature_2m: vc.currentConditions.temp,
-      weather_code: VC_ICON_TO_WMO.get(vc.currentConditions.icon) ?? 0,
+      weather_code: refineVCWeatherCode(vc.currentConditions.icon, vc.currentConditions.conditions),
       wind_speed_10m: convertWind(vc.currentConditions.windspeed),
     },
   };
@@ -456,7 +482,7 @@ async function fetchVisualCrossing() {
     normalized.daily = {
       temperature_2m_max: [day.tempmax],
       temperature_2m_min: [day.tempmin],
-      weather_code: [VC_ICON_TO_WMO.get(day.icon) ?? 0],
+      weather_code: [refineVCWeatherCode(day.icon, day.conditions)],
       wind_speed_10m_max: [convertWind(day.windgust ?? day.windspeed)],
     };
   }
